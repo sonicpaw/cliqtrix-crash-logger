@@ -1,6 +1,5 @@
 // ==============================================
-// server.js - Full working backend for Cliqtrix
-// Author: You
+// FULL server.js — Working Zoho Cliq Webhook DM
 // ==============================================
 
 const express = require("express");
@@ -42,7 +41,7 @@ app.post("/test", async (req, res) => {
 });
 
 // -----------------------------------------------
-// 3) LINK ACCOUNT ENDPOINT
+// 3) LINK ACCOUNT ENDPOINT (DM Notification)
 // -----------------------------------------------
 app.post("/link-account", async (req, res) => {
   try {
@@ -52,32 +51,33 @@ app.post("/link-account", async (req, res) => {
       return res.status(400).json({ ok: false, error: "missing_fields" });
     }
 
-    // Save mapping
+    // Save mapping to Firestore
     await db.collection("cliq_mapping").doc(cliq_user).set({
-      github_login,
+      github_login: github_login,
       updated: Date.now()
     });
 
     console.log("Mapped user:", cliq_user, "->", github_login);
 
-    // --- Notify Cliq Bot via webhook ---
+    // ---- Send DM to your Zoho account ----
     try {
       const webhookUrl = process.env.CLIQ_INCOMING_WEBHOOK;
 
       if (webhookUrl) {
         const payload = {
-          text: `✅ *Mapping Created*\n\n**Cliq User:** ${cliq_user}\n**GitHub:** ${github_login}`
-          user_id: "907431528"
+          text: `✅ Mapping Created\n\n**Cliq User:** ${cliq_user}\n**GitHub:** ${github_login}`,
+          user_id: "907444797"       // <--- YOUR USER ID
         };
 
-        await axios.post(webhookUrl, payload, {
+        const resp = await axios.post(webhookUrl, payload, {
           headers: { "Content-Type": "application/json" }
         });
 
-        console.log("Sent Cliq bot webhook notification.");
+        console.log("Webhook Sent:", resp.data);
       } else {
         console.log("CLIQ_INCOMING_WEBHOOK not set.");
       }
+
     } catch (hookErr) {
       console.error("Webhook error:", hookErr?.response?.data || hookErr.message);
     }
@@ -106,7 +106,6 @@ app.post("/error-report", async (req, res) => {
       return res.status(400).json({ ok: false, error: "missing_error_message" });
     }
 
-    // Save crash report
     const docRef = await db.collection("crash_reports").add({
       ...crash,
       received: Date.now()
@@ -114,28 +113,30 @@ app.post("/error-report", async (req, res) => {
 
     console.log("Crash saved:", docRef.id);
 
-    // --- Notify Cliq Bot via webhook ---
+    // ---- Send crash to your DM as well ----
     try {
       const webhookUrl = process.env.CLIQ_INCOMING_WEBHOOK;
 
       if (webhookUrl) {
         const payload = {
           text:
-            `❗ *New Error Reported*\n\n` +
+            `❗ **New Crash Reported**\n\n` +
             `**Message:** ${crash.message}\n` +
             `**URL:** ${crash.url || "N/A"}\n` +
             `**User Agent:** ${crash.userAgent || "N/A"}\n` +
-            `**ID:** ${docRef.id}`
+            `**Crash ID:** ${docRef.id}`,
+          user_id: "907444797"     // <--- YOUR USER ID
         };
 
-        await axios.post(webhookUrl, payload, {
+        const resp = await axios.post(webhookUrl, payload, {
           headers: { "Content-Type": "application/json" }
         });
 
-        console.log("Sent crash webhook notification.");
+        console.log("Crash Webhook Sent:", resp.data);
       }
-    } catch (e) {
-      console.error("Webhook error:", e?.response?.data || e.message);
+
+    } catch (hookErr) {
+      console.error("Webhook error:", hookErr?.response?.data || hookErr.message);
     }
 
     return res.json({ ok: true, crash_id: docRef.id });
