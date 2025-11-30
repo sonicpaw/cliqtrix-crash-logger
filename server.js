@@ -67,6 +67,7 @@ app.post("/link-account", async (req, res) => {
       if (webhookUrl) {
         const payload = {
           text: `✅ *Mapping Created*\n\n**Cliq User:** ${cliq_user}\n**GitHub:** ${github_login}`
+          user_id: "907431528"
         };
 
         await axios.post(webhookUrl, payload, {
@@ -152,3 +153,4 @@ const PORT = process.env.PORT || 3000;
 app.listen(PORT, () => {
   console.log(`Server running on ${PORT}`);
 });
+
